@@ -28,7 +28,7 @@ module fnd_cntr(
     output [3:0] com);
     
     wire [15:0] bcd_value;
-    bin_to_dec bcd(.bin(fnd_value[11:0]), .bcd(sec_bcd));
+    bin_to_dec bcd(.bin(fnd_value[11:0]), .bcd(bcd_value));
     
     reg [16:0] clk_div;
     always @(posedge clk)clk_div = clk_div + 1;
