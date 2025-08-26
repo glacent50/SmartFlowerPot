@@ -1,0 +1,27 @@
+# Ignore all files in SmartFlowerPot.sim/sim_1/behav/xsim
+
+SmartFlowerPot.cache/
+
+SmartFlowerPot.runs/
+
+SmartFlowerPot.hw/
+
+SmartFlowerPot.cache/wt/
+
+SmartFlowerPot.sim/
+
+SmartFlowerPot.ip_user_files/
+
+SmartFlowerPot.sim/sim_1/behav/xsim/
+
+SmartFlowerPot.cache/wt/project.wpc
+SmartFlowerPot.hw/SmartFlowerPot.lpr
+SmartFlowerPot.cache/wt/project.wpc
+SmartFlowerPot.hw/SmartFlowerPot.lpr
+SmartFlowerPot.hw/hw_1/hw.xml
+SmartFlowerPot.ip_user_files/README.txt
+SmartFlowerPot.cache/wt/project.wpc
+SmartFlowerPot.cache/wt/project.wpc
+SmartFlowerPot.hw/SmartFlowerPot.lpr
+SmartFlowerPot.srcs/utils_1/imports/synth_1/smart_flower_pot_top.dcp
+SmartFlowerPot.hw/SmartFlowerPot.lpr
