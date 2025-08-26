@@ -26,5 +26,6 @@ module smart_flower_pot_top(
     output F);
     
     assign F = A & B;
-    
 endmodule
+
+
