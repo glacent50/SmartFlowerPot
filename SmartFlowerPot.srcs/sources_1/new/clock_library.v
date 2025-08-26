@@ -45,3 +45,6 @@ module clock_div_100(
         .p_edge(pedge_div_100), .n_edge(nedge_div_100));
     
 endmodule
+
+//입력 100 MHz(10 ns)일 때, clk_div_100은 50클럭마다 토글하므로 전체 주기는 100클럭(1 μs), 
+//출력 주파수는 1 MHz입니다.
