@@ -99,7 +99,7 @@ module smart_flower_pot_top(
             end
             if (btn_pedge[2]) begin
                 // 버튼 2 눌림 동작
-                color_sel <= 3'd1; // 1은 Red에 해당
+                color_sel <= 3'd1; // 1은 Green에 해당
             end
             if (btn_pedge[3]) begin
                 // 버튼 3 눌림 동작

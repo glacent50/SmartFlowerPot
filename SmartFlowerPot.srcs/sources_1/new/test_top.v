@@ -743,7 +743,36 @@ endmodule
 
 
 
+module water_level_rgb_top(
+    input clk,
+    input reset_p,
+    input sensor_in,
+    output led_r,
+    output led_g,
+    output led_b
+);
 
+    wire [2:0] level_led;
+
+    // 수위 판단 모듈
+    water_level_single_pin wl (
+        .clk(clk),
+        .reset_p(reset_p),
+        .sensor_in(sensor_in),
+        .led(level_led)
+    );
+
+    // RGB LED 색상 출력 모듈
+    sfp_led_rgb_cntr rgb (
+        .clk(clk),
+        .reset_p(reset_p),
+        .color_sel(level_led),
+        .led_r(led_r),
+        .led_g(led_g),
+        .led_b(led_b)
+    );
+
+endmodule
 
 
 
