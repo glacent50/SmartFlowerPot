@@ -173,7 +173,7 @@ module smart_flower_pot_text_top(
     input clk, reset_p,
     input [3:0] btn,        // 시작 버튼
     output scl, sda,
-    output [15:0] led
+    output reg [15:0] led
 );
     
     // 버튼 입력의 상승 에지 검출 신호 [기능 테스트 용도]
@@ -183,28 +183,57 @@ module smart_flower_pot_text_top(
     btn_cntr btn2(clk, reset_p, btn[2], btn_pedge[2]);
     btn_cntr btn3(clk, reset_p, btn[3], btn_pedge[3]);
     
-   
+    // 통합 Hello World & Clear I2C LCD 컨트롤러
+    wire text_done, clear_done, init_done; // init_done 신호 추가 및 인스턴스와 연결
+    reg text_start;    // btn[0]: "Hello World" 출력
+    reg clear_start;   // btn[1]: 화면 지우기
+
+    hello_world_clear_i2c_cntr lcd_controller_inst(
+        .clk(clk),
+        .reset_p(reset_p),
+        .text_start(text_start),
+        .clear_start(clear_start),
+        .scl(scl),
+        .sda(sda),
+        .text_done(text_done),
+        .clear_done(clear_done),
+        .init_done(init_done) // init_done 포트 연결
+    );
 
     // 버튼 눌림 상태를 확인하는 always 블록
     always @(posedge clk or posedge reset_p) begin
         if (reset_p) begin
-            // 리셋 로직
-
-        end else begin
-            // 기본값을 0으로 설정하되, 버튼 입력이 있을 때만 1로 변경
-            if (btn_pedge[0]) begin
-
-            end 
+            text_start <= 0;
+            clear_start <= 0;
+            led <= 0;
+        end 
+        else begin
+            // 버튼 입력에 따른 처리 (버튼이 눌린 경우만 체크)
+            if (btn_pedge[0]) begin // btn[0] 눌림: "Hello World" 출력
+                text_start <= 1;
+                clear_start <= 0;
+            end
+            else if (btn_pedge[1]) begin // btn[1] 눌림: 화면 지우기
+                text_start <= 0;
+                clear_start <= 1;
+            end
+            else if (btn_pedge[2]) begin // btn[2] 눌림: 추가 기능
+                text_start <= 0;
+                clear_start <= 0;
+            end
+            else if (btn_pedge[3]) begin // btn[3] 눌림: 추가 기능
+                text_start <= 0;
+                clear_start <= 0;
+            end
+            else begin // 버튼이 눌리지 않은 경우
+                text_start <= 0;
+                clear_start <= 0;
+            end
             
-            if (btn_pedge[1]) begin
-                // 버튼 1 눌림 동작: 추가 기능 구현 가능
-            end
-            if (btn_pedge[2]) begin
-                // 버튼 2 눌림 동작: 추가 기능 구현 가능
-            end
-            if (btn_pedge[3]) begin
-                // 버튼 3 눌림 동작: 추가 기능 구현 가능               
-            end
+            // 디버깅용: 상태 변화가 있을 때만 LED 업데이트
+            if (led[15] != init_done) led[15] <= init_done;
+            if (led[14] != clear_done) led[14] <= clear_done;
+            if (led[13] != text_done) led[13] <= text_done;
         end
     end
 

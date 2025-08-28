@@ -924,7 +924,7 @@ module hello_world_clear_i2c_cntr(
     output scl, sda,
     output reg text_done,          // 텍스트 출력 완료 신호
     output reg clear_done,         // 화면 지우기 완료 신호
-    output [15:0] led
+    output reg init_done          // 초기화 완료 신호
 );
 
     // I2C LCD 전송 모듈 인스턴스화
@@ -957,22 +957,7 @@ module hello_world_clear_i2c_cntr(
     reg [3:0] char_index;      // 문자열 인덱스 (0~10)
     reg [2:0] init_index;      // 초기화 명령 인덱스
     reg [31:0] cnt_data;       // 초기화용 카운터
-    reg init_done;             // 초기화 완료 플래그
-
-    // Edge 감지
-    reg text_start_prev, clear_start_prev;
-    wire text_start_pedge, clear_start_pedge;
-    always @(posedge clk or posedge reset_p) begin
-        if (reset_p) begin
-            text_start_prev <= 0;
-            clear_start_prev <= 0;
-        end else begin
-            text_start_prev <= text_start;
-            clear_start_prev <= clear_start;
-        end
-    end
-    assign text_start_pedge = text_start & ~text_start_prev;
-    assign clear_start_pedge = clear_start & ~clear_start_prev;
+    // init_done은 이제 output으로 선언됨
 
     // 초기화 명령 (HD44780 표준)
     reg [7:0] init_cmds [0:5];
@@ -1022,10 +1007,10 @@ module hello_world_clear_i2c_cntr(
                         end
                     end else begin
                         // 초기화 완료 후 명령 대기
-                        if (text_start_pedge) begin
+                        if (text_start) begin
                             char_index <= 0;
                             next_state <= SEND_STRING;
-                        end else if (clear_start_pedge) begin
+                        end else if (clear_start) begin
                             next_state <= CLEAR_DISPLAY;
                         end
                     end
@@ -1033,7 +1018,7 @@ module hello_world_clear_i2c_cntr(
                 
                 INIT: begin
                     if (busy) begin
-                        send <= 0;
+                        send = 0;
                         if (init_index >= 6) begin
                             next_state <= IDLE;
                             init_index <= 0;
@@ -1042,53 +1027,41 @@ module hello_world_clear_i2c_cntr(
                     end else if (!send) begin
                         rs <= 0;  // 명령 모드
                         send_buffer <= init_cmds[init_index];
-                        send <= 1;
+                        send = 1;
                         init_index <= init_index + 1;
                     end
                 end
                 
                 SEND_STRING: begin
                     if (busy) begin
-                        send <= 0;
+                        send = 0;
                         if (char_index >= 11) begin  // "Hello World" 전송 완료
                             next_state <= IDLE;
                             char_index <= 0;
                             text_done <= 1;
                         end
                     end else if (!send) begin
-                        rs <= 1;  // 데이터 모드
+                        rs = 1;  // 데이터 모드
                         send_buffer <= hello_string[char_index];
-                        send <= 1;
+                        send = 1;
                         char_index <= char_index + 1;
                     end
                 end
                 
                 CLEAR_DISPLAY: begin
                     if (busy) begin
-                        send <= 0;
+                        send = 0;
                         next_state <= IDLE;
                         clear_done <= 1;
                     end else if (!send) begin
-                        rs <= 0;  // 명령 모드
+                        rs = 0;  // 명령 모드
                         send_buffer <= 8'h01; // Clear Display 명령
-                        send <= 1;
+                        send = 1;
                     end
                 end
             endcase
         end
     end
-
-    // LED 디버깅
-    assign led[2:0] = state;           // FSM 상태
-    assign led[3] = init_done;         // 초기화 완료 상태
-    assign led[4] = text_done;         // 텍스트 출력 완료 상태
-    assign led[5] = clear_done;        // 화면 지우기 완료 상태
-    assign led[6] = busy;              // I2C 통신 상태
-    assign led[10:7] = char_index;     // 현재 문자 인덱스
-    assign led[11] = text_start;       // 텍스트 시작 신호
-    assign led[12] = clear_start;      // 클리어 시작 신호
-    assign led[15:13] = 0;             // 예약
-
 endmodule
 
 // Simple Hello World I2C LCD Top Module (Restructured)
@@ -1108,6 +1081,8 @@ module hello_world_i2c_lcd_top(
     
     // 통합 Hello World & Clear I2C LCD 컨트롤러
     wire text_done, clear_done;
+    wire init_done; // init_done 신호 추가 및 인스턴스와 연결
+
     wire text_start = btn_pedge[0];    // btn[0]: "Hello World" 출력
     wire clear_start = btn_pedge[1];   // btn[1]: 화면 지우기
     
@@ -1120,10 +1095,13 @@ module hello_world_i2c_lcd_top(
         .sda(sda),
         .text_done(text_done),
         .clear_done(clear_done)
-//        ,
-//        .led(led)
+        ,.init_done(init_done) // init_done 포트 연결
     );
 
+    // 디버깅용: 초기화 완료 상태를 LED에 표시 (선택)
+    assign led[15] = init_done;
+    assign led[14] = clear_done;
+    assign led[13] = text_done;
     
 endmodule
 
