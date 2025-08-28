@@ -857,11 +857,6 @@ module adc_top_6(
 endmodule
 
 
-
-
-
-
-
 // adc test
 module adc_sequence2_top (
     input clk, reset_p,
@@ -927,6 +922,123 @@ module adc_sequence2_top (
 
 endmodule
 
+// copilot test code
+module hello_world_i2c_lcd_top(
+    input clk, reset_p,
+    output scl, sda,
+    output [15:0] led
+);
+
+    // I2C LCD 전송 모듈 인스턴스화
+    reg [7:0] send_buffer;
+    reg send, rs;
+    wire busy;
+    i2c_lcd_send_byte send_byte(
+        .clk(clk), .reset_p(reset_p),
+        .addr(7'h27), .send_buffer(send_buffer),
+        .send(send), .rs(rs),
+        .scl(scl), .sda(sda), .busy(busy), .led()
+    );
+
+    // "Hello World" 문자열 정의 (ASCII 코드)
+    reg [7:0] hello_world [0:10];
+    initial begin
+        hello_world[0] = "H";
+        hello_world[1] = "e";
+        hello_world[2] = "l";
+        hello_world[3] = "l";
+        hello_world[4] = "o";
+        hello_world[5] = " ";
+        hello_world[6] = "W";
+        hello_world[7] = "o";
+        hello_world[8] = "r";
+        hello_world[9] = "l";
+        hello_world[10] = "d";
+    end
+
+    // FSM 상태 정의
+    localparam IDLE = 3'b001;
+    localparam INIT = 3'b010;
+    localparam SEND_STRING = 3'b100;
+
+    reg [2:0] state, next_state;
+    reg [3:0] char_index;  // 문자열 인덱스 (0~10)
+    reg [2:0] init_index;  // 초기화 명령 인덱스
+    reg [31:0] cnt_data;   // 초기화용 카운터 (32비트로 확장)
+
+    // 초기화 명령 (기존 모듈 참고)
+    reg [7:0] init_cmds [0:5];
+    initial begin
+        init_cmds[0] = 8'h33;
+        init_cmds[1] = 8'h32;
+        init_cmds[2] = 8'h28;
+        init_cmds[3] = 8'h0c;
+        init_cmds[4] = 8'h01;
+        init_cmds[5] = 8'h06;
+    end
+
+    // 상태 전이
+    always @(negedge clk or posedge reset_p) begin
+        if (reset_p) state <= IDLE;
+        else state <= next_state;
+    end
+
+    // FSM 로직
+    always @(posedge clk or posedge reset_p) begin
+        if (reset_p) begin
+            next_state <= IDLE;
+            send <= 0;
+            rs <= 0;
+            char_index <= 0;
+            init_index <= 0;
+            cnt_data <= 0;
+        end else begin
+            case (state)
+                IDLE: begin
+                    if (cnt_data < 32'd8_000_000) begin  // 80ms 지연 (100MHz 기준)
+                        cnt_data <= cnt_data + 1;
+                    end else begin
+                        next_state <= INIT;
+                        cnt_data <= 0;
+                    end
+                end
+                INIT: begin
+                    if (busy) begin
+                        send <= 0;
+                        if (init_index >= 6) begin  // 모든 6개 명령 전송 완료
+                            next_state <= SEND_STRING;
+                            init_index <= 0;
+                        end
+                    end else if (!send) begin
+                        rs <= 0;  // 명령 모드
+                        send_buffer <= init_cmds[init_index];
+                        send <= 1;
+                        init_index <= init_index + 1;
+                    end
+                end
+                SEND_STRING: begin
+                    if (busy) begin
+                        send <= 0;
+                        if (char_index >= 11) begin  // 모든 11개 문자 전송 완료
+                            next_state <= IDLE;  // 완료 후 IDLE로
+                            char_index <= 0;     // 인덱스 리셋
+                        end
+                    end else if (!send) begin
+                        rs <= 1;  // 데이터 모드
+                        send_buffer <= hello_world[char_index];
+                        send <= 1;
+                        char_index <= char_index + 1;
+                    end
+                end
+            endcase
+        end
+    end
+
+    // LED 디버깅 (상태 표시)
+    assign led[2:0] = state;
+    assign led[15:3] = 0;  // 나머지 비트는 0
+
+endmodule
 
 
 
