@@ -184,7 +184,7 @@ module smart_flower_pot_text_top(
     btn_cntr btn3(clk, reset_p, btn[3], btn_pedge[3]);
     
     // 통합 Hello World & Clear I2C LCD 컨트롤러
-    wire happy_done, clear_done, smile_done, sad_done, normal_done, init_done;
+    wire init_done;
     reg happy_start;   // btn[0]: "Happy Face" 출력
     reg clear_start;   // btn[1]: 화면 지우기
     reg smile_start;   // btn[2]: "Smile Face" 출력
@@ -201,11 +201,6 @@ module smart_flower_pot_text_top(
         .normal_start(normal_start),
         .scl(scl),
         .sda(sda),
-        .happy_done(happy_done),
-        .clear_done(clear_done),
-        .smile_done(smile_done),
-        .sad_done(sad_done),
-        .normal_done(normal_done),
         .init_done(init_done) // init_done 포트 연결
     );
 
@@ -272,11 +267,6 @@ module smart_flower_pot_text_top(
             
             // 디버깅용: 상태 변화가 있을 때만 LED 업데이트
             if (led[15] != init_done) led[15] <= init_done;
-            if (led[14] != clear_done) led[14] <= clear_done;
-            if (led[13] != happy_done) led[13] <= happy_done;
-            if (led[12] != smile_done) led[12] <= smile_done;
-            if (led[11] != sad_done) led[11] <= sad_done;
-            if (led[10] != normal_done) led[10] <= normal_done;
         end
     end
 

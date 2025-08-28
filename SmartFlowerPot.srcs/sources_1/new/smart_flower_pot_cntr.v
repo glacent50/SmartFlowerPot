@@ -74,11 +74,6 @@ module sfa_i2c_lcd_text_cntr(
     input sad_start,               // "Sad Face" 출력 시작 신호
     input normal_start,            // "Normal Face" 출력 시작 신호
     output scl, sda,
-    output reg happy_done,         // Happy Face 출력 완료 신호
-    output reg clear_done,         // 화면 지우기 완료 신호
-    output reg smile_done,         // "Smile Face" 출력 완료 신호
-    output reg sad_done,           // "Sad Face" 출력 완료 신호
-    output reg normal_done,        // "Normal Face" 출력 완료 신호
     output reg init_done          // 초기화 완료 신호
 );
 
@@ -144,7 +139,13 @@ module sfa_i2c_lcd_text_cntr(
     reg [31:0] cnt_data;       // 초기화용 카운터
     reg [3:0] max_char_index;  // 현재 문자열의 최대 인덱스
     reg [1:0] next_action;     // 다음에 수행할 동작 (0: Happy Face, 1: Smile Face, 2: Sad Face, 3: Normal Face)
-    // init_done은 이제 output으로 선언됨
+    
+    // 내부 완료 신호들 (외부 포트에서 내부 변수로 변경)
+    reg happy_done;            // Happy Face 출력 완료 신호
+    reg clear_done;            // 화면 지우기 완료 신호
+    reg smile_done;            // "Smile Face" 출력 완료 신호
+    reg sad_done;              // "Sad Face" 출력 완료 신호
+    reg normal_done;           // "Normal Face" 출력 완료 신호
 
     // 초기화 명령 (HD44780 표준)
     reg [7:0] init_cmds [0:5];
