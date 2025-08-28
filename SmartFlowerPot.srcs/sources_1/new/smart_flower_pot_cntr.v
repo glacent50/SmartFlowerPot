@@ -65,11 +65,3 @@ module sfp_buzz_cntr (
     end
 
 endmodule
-
-
-
-
-
-
-
-

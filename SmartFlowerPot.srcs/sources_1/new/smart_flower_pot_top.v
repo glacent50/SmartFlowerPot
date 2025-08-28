@@ -169,6 +169,54 @@ endmodule
 
 
 
+module smart_flower_pot_text_top(
+    input clk, reset_p,
+    input [3:0] btn,        // 시작 버튼
+    output scl, sda,
+    output [15:0] led
+);
+    
+    // 버튼 입력의 상승 에지 검출 신호 [기능 테스트 용도]
+    wire [3:0] btn_pedge; 
+    btn_cntr btn0(clk, reset_p, btn[0], btn_pedge[0]);
+    btn_cntr btn1(clk, reset_p, btn[1], btn_pedge[1]);
+    btn_cntr btn2(clk, reset_p, btn[2], btn_pedge[2]);
+    btn_cntr btn3(clk, reset_p, btn[3], btn_pedge[3]);
+    
+   
+
+    // 버튼 눌림 상태를 확인하는 always 블록
+    always @(posedge clk or posedge reset_p) begin
+        if (reset_p) begin
+            // 리셋 로직
+
+        end else begin
+            // 기본값을 0으로 설정하되, 버튼 입력이 있을 때만 1로 변경
+            if (btn_pedge[0]) begin
+
+            end 
+            
+            if (btn_pedge[1]) begin
+                // 버튼 1 눌림 동작: 추가 기능 구현 가능
+            end
+            if (btn_pedge[2]) begin
+                // 버튼 2 눌림 동작: 추가 기능 구현 가능
+            end
+            if (btn_pedge[3]) begin
+                // 버튼 3 눌림 동작: 추가 기능 구현 가능               
+            end
+        end
+    end
+
+
+endmodule
+
+
+
+
+
+
+
 
 
 
