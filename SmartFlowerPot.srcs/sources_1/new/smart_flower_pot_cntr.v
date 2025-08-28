@@ -68,11 +68,7 @@ endmodule
 
 module sfa_i2c_lcd_text_cntr(
     input clk, reset_p,
-    input happy_start,             // Happy Face 출력 시작 신호
-    input clear_start,             // 화면 지우기 시작 신호
-    input smile_start,             // "Smile Face" 출력 시작 신호
-    input sad_start,               // "Sad Face" 출력 시작 신호
-    input normal_start,            // "Normal Face" 출력 시작 신호
+    input [2:0] text_cmd,          // 텍스트 명령 (1: Happy, 2: Smile, 3: Sad, 4: Normal, 5: Clear)
     output scl, sda,
     output reg init_done          // 초기화 완료 신호
 );
@@ -138,7 +134,8 @@ module sfa_i2c_lcd_text_cntr(
     reg [2:0] init_index;      // 초기화 명령 인덱스
     reg [31:0] cnt_data;       // 초기화용 카운터
     reg [3:0] max_char_index;  // 현재 문자열의 최대 인덱스
-    reg [1:0] next_action;     // 다음에 수행할 동작 (0: Happy Face, 1: Smile Face, 2: Sad Face, 3: Normal Face)
+    reg [2:0] text_cmd_prev;   // 이전 text_cmd 값 저장 (엣지 감지용)
+    wire text_cmd_edge;        // text_cmd 변화 감지 신호
     
     // 내부 완료 신호들 (외부 포트에서 내부 변수로 변경)
     reg happy_done;            // Happy Face 출력 완료 신호
@@ -158,6 +155,9 @@ module sfa_i2c_lcd_text_cntr(
         init_cmds[5] = 8'h06;  // Entry mode set: Increment cursor
     end
 
+    // text_cmd 엣지 감지 로직
+    assign text_cmd_edge = (text_cmd != text_cmd_prev) && (text_cmd != 3'b000);
+
     // 상태 전이
     always @(negedge clk or posedge reset_p) begin
         if (reset_p) state = IDLE;
@@ -174,7 +174,7 @@ module sfa_i2c_lcd_text_cntr(
             init_index = 0;
             cnt_data = 0;
             max_char_index = 0;
-            next_action = 0;
+            text_cmd_prev = 0;
             init_done = 0;
             happy_done = 0;
             clear_done = 0;
@@ -182,6 +182,9 @@ module sfa_i2c_lcd_text_cntr(
             sad_done = 0;
             normal_done = 0;
         end else begin
+            // text_cmd 이전 값 업데이트 (엣지 감지용)
+            text_cmd_prev <= text_cmd;
+            
             case (state)
                 IDLE: begin
                     // 완료 신호들을 일정 시간 후 리셋
@@ -204,32 +207,35 @@ module sfa_i2c_lcd_text_cntr(
                     end 
                     else begin
                         // 초기화 완료 후 명령 대기
-                        if (happy_start) begin
-                            char_index = 0;
-                            max_char_index = 10; // "Happy Face" 길이
-                            next_action = 0; // Happy Face 출력 예정
-                            next_state = SEND_HAPPY;
-                        end 
-                        else if (clear_start) begin
-                            next_state = CLEAR_DISPLAY;
-                        end 
-                        else if (smile_start) begin
-                            char_index = 0;
-                            max_char_index = 10; // "Smile Face" 길이
-                            next_action = 1; // Smile Face 출력 예정
-                            next_state = SEND_SMILE;
-                        end
-                        else if (sad_start) begin
-                            char_index = 0;
-                            max_char_index = 8; // "Sad Face" 길이
-                            next_action = 2; // Sad Face 출력 예정
-                            next_state = SEND_SAD;
-                        end
-                        else if (normal_start) begin
-                            char_index = 0;
-                            max_char_index = 11; // "Normal Face" 길이
-                            next_action = 3; // Normal Face 출력 예정
-                            next_state = SEND_NORMAL;
+                        if (text_cmd_edge) begin
+                            case (text_cmd)
+                                3'b001: begin // Happy Face
+                                    char_index = 0;
+                                    max_char_index = 10;
+                                    next_state = SEND_HAPPY;
+                                end
+                                3'b010: begin // Smile Face
+                                    char_index = 0;
+                                    max_char_index = 10;
+                                    next_state = SEND_SMILE;
+                                end
+                                3'b011: begin // Sad Face
+                                    char_index = 0;
+                                    max_char_index = 8;
+                                    next_state = SEND_SAD;
+                                end
+                                3'b100: begin // Normal Face
+                                    char_index = 0;
+                                    max_char_index = 11;
+                                    next_state = SEND_NORMAL;
+                                end
+                                3'b101: begin // Clear Display
+                                    next_state = CLEAR_DISPLAY;
+                                end
+                                default: begin
+                                    // 잘못된 명령이거나 0인 경우 아무 동작 안함
+                                end
+                            endcase
                         end
                     end
                 end
