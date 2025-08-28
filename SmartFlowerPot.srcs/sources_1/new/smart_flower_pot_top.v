@@ -184,22 +184,28 @@ module smart_flower_pot_text_top(
     btn_cntr btn3(clk, reset_p, btn[3], btn_pedge[3]);
     
     // 통합 Hello World & Clear I2C LCD 컨트롤러
-    wire text_done, clear_done, smile_done, init_done;
-    reg text_start;    // btn[0]: "Hello World" 출력
+    wire happy_done, clear_done, smile_done, sad_done, normal_done, init_done;
+    reg happy_start;   // btn[0]: "Happy Face" 출력
     reg clear_start;   // btn[1]: 화면 지우기
     reg smile_start;   // btn[2]: "Smile Face" 출력
+    reg sad_start;     // btn[3]: "Sad Face" 출력
+    reg normal_start;  // "Normal Face" 출력 (추후 확장 가능)
 
     sfa_i2c_lcd_text_cntr lcd_text_cntr(
         .clk(clk),
         .reset_p(reset_p),
-        .text_start(text_start),
+        .happy_start(happy_start),
         .clear_start(clear_start),
         .smile_start(smile_start),
+        .sad_start(sad_start),
+        .normal_start(normal_start),
         .scl(scl),
         .sda(sda),
-        .text_done(text_done),
+        .happy_done(happy_done),
         .clear_done(clear_done),
         .smile_done(smile_done),
+        .sad_done(sad_done),
+        .normal_done(normal_done),
         .init_done(init_done) // init_done 포트 연결
     );
 
@@ -218,45 +224,59 @@ module smart_flower_pot_text_top(
     // 버튼 눌림 상태를 확인하는 always 블록
     always @(posedge clk or posedge reset_p) begin
         if (reset_p) begin
-            text_start = 0;
+            happy_start = 0;
             clear_start = 0;
             smile_start = 0;
+            sad_start = 0;
+            normal_start = 0;
             count_usec_e = 0;
             led = 0;
         end 
         else begin
             // 버튼 입력에 따른 처리 (버튼이 눌린 경우만 체크)
-            if (btn_pedge[0]) begin // btn[0] 눌림: "Hello World" 출력
-                text_start = 1;
+            if (btn_pedge[0]) begin // btn[0] 눌림: "Happy Face" 출력
+                happy_start = 1;
                 clear_start = 0;
                 smile_start = 0;
+                sad_start = 0;
+                normal_start = 0;
             end
-            else if (btn_pedge[1]) begin // btn[1] 눌림: 화면 지우기
-                text_start = 0;
-                clear_start = 1;
+            else if (btn_pedge[1]) begin // btn[1] "Normal Face" 출력
+                happy_start = 0;
+                clear_start = 0;
                 smile_start = 0;
+                sad_start = 0;
+                normal_start = 1;
             end
             else if (btn_pedge[2]) begin // btn[2] 눌림: "Smile Face" 출력
-                text_start = 0;
+                happy_start = 0;
                 clear_start = 0;
                 smile_start = 1;
+                sad_start = 0;
+                normal_start = 0;
             end
-            else if (btn_pedge[3]) begin // btn[3] 눌림: 추가 기능
-                text_start = 0;
+            else if (btn_pedge[3]) begin // btn[3] 눌림: "Sad Face" 출력
+                happy_start = 0;
                 clear_start = 0;
                 smile_start = 0;
+                sad_start = 1;
+                normal_start = 0;
             end
-            else begin // 버튼이 눌리지 않은 경우
-                text_start = 0;
+            else begin // 버튼이 눌리지 않은 경우 : 화면 클리어
+                happy_start = 0;
                 clear_start = 0;
                 smile_start = 0;
+                sad_start = 0;
+                normal_start = 0;
             end
             
             // 디버깅용: 상태 변화가 있을 때만 LED 업데이트
             if (led[15] != init_done) led[15] <= init_done;
             if (led[14] != clear_done) led[14] <= clear_done;
-            if (led[13] != text_done) led[13] <= text_done;
+            if (led[13] != happy_done) led[13] <= happy_done;
             if (led[12] != smile_done) led[12] <= smile_done;
+            if (led[11] != sad_done) led[11] <= sad_done;
+            if (led[10] != normal_done) led[10] <= normal_done;
         end
     end
 

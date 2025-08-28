@@ -68,13 +68,17 @@ endmodule
 
 module sfa_i2c_lcd_text_cntr(
     input clk, reset_p,
-    input text_start,              // 텍스트 출력 시작 신호
+    input happy_start,             // Happy Face 출력 시작 신호
     input clear_start,             // 화면 지우기 시작 신호
     input smile_start,             // "Smile Face" 출력 시작 신호
+    input sad_start,               // "Sad Face" 출력 시작 신호
+    input normal_start,            // "Normal Face" 출력 시작 신호
     output scl, sda,
-    output reg text_done,          // 텍스트 출력 완료 신호
+    output reg happy_done,         // Happy Face 출력 완료 신호
     output reg clear_done,         // 화면 지우기 완료 신호
     output reg smile_done,         // "Smile Face" 출력 완료 신호
+    output reg sad_done,           // "Sad Face" 출력 완료 신호
+    output reg normal_done,        // "Normal Face" 출력 완료 신호
     output reg init_done          // 초기화 완료 신호
 );
 
@@ -90,13 +94,13 @@ module sfa_i2c_lcd_text_cntr(
         .scl(scl), .sda(sda), .busy(busy), .led()
     );
 
-    // "Hello World" 문자열 정의
-    reg [7:0] hello_string [0:10];
+    // "Happy Face" 문자열 정의
+    reg [7:0] happy_string [0:9];
     initial begin
-        hello_string[0] = "H"; hello_string[1] = "e"; hello_string[2] = "l"; 
-        hello_string[3] = "l"; hello_string[4] = "o"; hello_string[5] = " ";
-        hello_string[6] = "W"; hello_string[7] = "o"; hello_string[8] = "r"; 
-        hello_string[9] = "l"; hello_string[10] = "d";
+        happy_string[0] = "H"; happy_string[1] = "a"; happy_string[2] = "p"; 
+        happy_string[3] = "p"; happy_string[4] = "y"; happy_string[5] = " ";
+        happy_string[6] = "F"; happy_string[7] = "a"; happy_string[8] = "c"; 
+        happy_string[9] = "e";
     end
 
     // "Smile Face" 문자열 정의
@@ -108,19 +112,38 @@ module sfa_i2c_lcd_text_cntr(
         smile_string[9] = "e";
     end
 
-    // FSM 상태 정의
-    localparam IDLE = 4'b0000;
-    localparam INIT = 4'b0001;
-    localparam SEND_STRING = 4'b0011;
-    localparam CLEAR_DISPLAY = 4'b0100;
-    localparam SEND_SMILE = 4'b0101;
+    // "Sad Face" 문자열 정의
+    reg [7:0] sad_string [0:7];
+    initial begin
+        sad_string[0] = "S"; sad_string[1] = "a"; sad_string[2] = "d"; 
+        sad_string[3] = " "; sad_string[4] = "F"; sad_string[5] = "a"; 
+        sad_string[6] = "c"; sad_string[7] = "e";
+    end
 
-    reg [3:0] state, next_state;
+    // "Normal Face" 문자열 정의
+    reg [7:0] normal_string [0:10];
+    initial begin
+        normal_string[0] = "N"; normal_string[1] = "o"; normal_string[2] = "r"; 
+        normal_string[3] = "m"; normal_string[4] = "a"; normal_string[5] = "l"; 
+        normal_string[6] = " "; normal_string[7] = "F"; normal_string[8] = "a"; 
+        normal_string[9] = "c"; normal_string[10] = "e";
+    end
+
+    // FSM 상태 정의 (1-hot 인코딩)
+    localparam IDLE         = 7'b000_0001;  // 0: 대기 상태
+    localparam INIT         = 7'b000_0010;  // 1: 초기화 상태  
+    localparam SEND_HAPPY   = 7'b000_0100;  // 2: Happy Face 전송 상태
+    localparam CLEAR_DISPLAY= 7'b000_1000;  // 3: 화면 지우기 상태
+    localparam SEND_SMILE   = 7'b001_0000;  // 4: Smile Face 전송 상태
+    localparam SEND_SAD     = 7'b010_0000;  // 5: Sad Face 전송 상태
+    localparam SEND_NORMAL  = 7'b100_0000;  // 6: Normal Face 전송 상태
+
+    reg [6:0] state, next_state;
     reg [3:0] char_index;      // 문자열 인덱스 (0~10)
     reg [2:0] init_index;      // 초기화 명령 인덱스
     reg [31:0] cnt_data;       // 초기화용 카운터
     reg [3:0] max_char_index;  // 현재 문자열의 최대 인덱스
-    reg next_action;           // 다음에 수행할 동작 (0: Hello World, 1: Smile Face)
+    reg [1:0] next_action;     // 다음에 수행할 동작 (0: Happy Face, 1: Smile Face, 2: Sad Face, 3: Normal Face)
     // init_done은 이제 output으로 선언됨
 
     // 초기화 명령 (HD44780 표준)
@@ -152,17 +175,21 @@ module sfa_i2c_lcd_text_cntr(
             max_char_index = 0;
             next_action = 0;
             init_done = 0;
-            text_done = 0;
+            happy_done = 0;
             clear_done = 0;
             smile_done = 0;
+            sad_done = 0;
+            normal_done = 0;
         end else begin
             case (state)
                 IDLE: begin
                     // 완료 신호들을 일정 시간 후 리셋
-                    if (text_done || clear_done || smile_done) begin
-                        text_done = 0;
+                    if (happy_done || clear_done || smile_done || sad_done || normal_done) begin
+                        happy_done = 0;
                         clear_done = 0;
                         smile_done = 0;
+                        sad_done = 0;
+                        normal_done = 0;
                     end
                     
                     if (!init_done) begin
@@ -170,17 +197,17 @@ module sfa_i2c_lcd_text_cntr(
                         if (cnt_data < 32'd8_000_000) begin
                             cnt_data = cnt_data + 1;
                         end else begin
-                            next_state <= INIT;
+                            next_state = INIT;
                             cnt_data = 0;
                         end
                     end 
                     else begin
                         // 초기화 완료 후 명령 대기
-                        if (text_start) begin
+                        if (happy_start) begin
                             char_index = 0;
-                            max_char_index = 11; // "Hello World" 길이
-                            next_action = 0; // Hello World 출력 예정
-                            next_state = SEND_STRING;
+                            max_char_index = 10; // "Happy Face" 길이
+                            next_action = 0; // Happy Face 출력 예정
+                            next_state = SEND_HAPPY;
                         end 
                         else if (clear_start) begin
                             next_state = CLEAR_DISPLAY;
@@ -190,6 +217,18 @@ module sfa_i2c_lcd_text_cntr(
                             max_char_index = 10; // "Smile Face" 길이
                             next_action = 1; // Smile Face 출력 예정
                             next_state = SEND_SMILE;
+                        end
+                        else if (sad_start) begin
+                            char_index = 0;
+                            max_char_index = 8; // "Sad Face" 길이
+                            next_action = 2; // Sad Face 출력 예정
+                            next_state = SEND_SAD;
+                        end
+                        else if (normal_start) begin
+                            char_index = 0;
+                            max_char_index = 11; // "Normal Face" 길이
+                            next_action = 3; // Normal Face 출력 예정
+                            next_state = SEND_NORMAL;
                         end
                     end
                 end
@@ -211,17 +250,17 @@ module sfa_i2c_lcd_text_cntr(
                     end
                 end
                 
-               SEND_STRING: begin
+               SEND_HAPPY: begin
                     if (busy) begin
                         send = 0;
                         if (char_index >= max_char_index) begin  // 문자열 전송 완료
                             next_state = IDLE;
                             char_index = 0;
-                            text_done = 1;
+                            happy_done = 1;
                         end
                     end else if (!send) begin
                         rs = 1;  // 데이터 모드
-                        send_buffer = hello_string[char_index];
+                        send_buffer = happy_string[char_index];
                         send = 1;
                         char_index = char_index + 1;
                     end
@@ -238,6 +277,38 @@ module sfa_i2c_lcd_text_cntr(
                     end else if (!send) begin
                         rs = 1;  // 데이터 모드
                         send_buffer = smile_string[char_index];
+                        send = 1;
+                        char_index = char_index + 1;
+                    end
+                end
+                
+                SEND_SAD: begin
+                    if (busy) begin
+                        send = 0;
+                        if (char_index >= max_char_index) begin  // "Sad Face" 전송 완료
+                            next_state = IDLE;
+                            char_index = 0;
+                            sad_done = 1;
+                        end
+                    end else if (!send) begin
+                        rs = 1;  // 데이터 모드
+                        send_buffer = sad_string[char_index];
+                        send = 1;
+                        char_index = char_index + 1;
+                    end
+                end
+                
+                SEND_NORMAL: begin
+                    if (busy) begin
+                        send = 0;
+                        if (char_index >= max_char_index) begin  // "Normal Face" 전송 완료
+                            next_state = IDLE;
+                            char_index = 0;
+                            normal_done = 1;
+                        end
+                    end else if (!send) begin
+                        rs = 1;  // 데이터 모드
+                        send_buffer = normal_string[char_index];
                         send = 1;
                         char_index = char_index + 1;
                     end
