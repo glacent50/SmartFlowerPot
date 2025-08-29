@@ -28,7 +28,8 @@ module smart_flower_pot_top(
     output [3:0] com,
     output reg [15:0] led,
     output led_r, led_g, led_b,
-    output buzz);
+    output buzz,
+    output scl, sda);
 
     // DHT11 센서를 제어하여 습도와 온도를 읽어오는 모듈
     wire [7:0] humidity, temperature;
@@ -84,22 +85,6 @@ module smart_flower_pot_top(
         if (reset_p) adc_value = 0;
         else if (eoc_pedge) begin
             adc_value = do_out[15:8];
-
-            if ( adc_value <= 10) begin
-                led = 16'b0000_0000_0000_0000;
-            end
-            else if ( adc_value <= 30) begin
-                led = 16'b0000_0000_0000_1111; //step 1
-            end
-            else if (adc_value <= 40) begin
-                led = 16'b0000_0000_1111_1111; //step 2
-            end
-            else if (adc_value <= 50) begin
-                led = 16'b0000_1111_1111_1111; //step 3
-            end
-            else begin
-                led = 16'b1111_1111_1111_1111; //step 4
-            end
         end
     end
 
@@ -113,6 +98,7 @@ module smart_flower_pot_top(
         .buzz    (buzz_out)
     );
     assign buzz = buzz_out; // 부저 출력 신호를 상위 모듈에 연결 (최종 출력)
+    
 
     // RGB LED 제어 (RGB LED의 색상을 선택하고 출력 신호를 제어)
     reg  [2:0] color_sel; // 색상 선택 신호 (3비트)
@@ -128,62 +114,9 @@ module smart_flower_pot_top(
     assign led_r = led_r_out; // Red LED 출력 신호 연결
     assign led_g = led_g_out; // Green LED 출력 신호 연결
     assign led_b = led_b_out; // Blue LED 출력 신호 연결
+    
 
-    // 버튼 입력의 상승 에지 검출 신호 [기능 테스트 용도]
-    wire [3:0] btn_pedge; 
-    btn_cntr btn0(clk, reset_p, btn[0], btn_pedge[0]);
-    btn_cntr btn1(clk, reset_p, btn[1], btn_pedge[1]);
-    btn_cntr btn2(clk, reset_p, btn[2], btn_pedge[2]);
-    btn_cntr btn3(clk, reset_p, btn[3], btn_pedge[3]);
-    
-    // 버튼 눌림 상태를 확인하는 always 블록
-    always @(posedge clk or posedge reset_p) begin
-        if (reset_p) begin
-            // 리셋 로직
-            buzz_enable <= 1'b0;
-            //color_sel <= 3'd6; // sfp_led_rgb_cntr 에서 reset 시 off 됨. 
-        end else begin
-            if (btn_pedge[0]) begin
-                // 버튼 0 눌림 동작: 부저 토글
-                buzz_enable <= ~buzz_enable;
-            end
-            if (btn_pedge[1]) begin
-                // 버튼 1 눌림 동작: RGB LED를 노란색으로 설정
-                // 색상 선택 (예: 3비트, 0: Red, 1: Green, 2: Blue, 3: Yellow, 4: Cyan, 5: Magenta, 6: White)
-                color_sel <= 3'd2; // 2은 Blue에 해당
-            end
-            if (btn_pedge[2]) begin
-                // 버튼 2 눌림 동작
-                color_sel <= 3'd1; // 1은 Green에 해당
-            end
-            if (btn_pedge[3]) begin
-                // 버튼 3 눌림 동작
-                color_sel <= 3'd0; // 1은 Green에 해당
-            end
-        end
-    end
-    
-    // i2c_lcd_text 문자 출력 로직 추가작성 필요 : switch 버튼으로 처리.
-    
-endmodule
-
-
-
-module smart_flower_pot_text_top(
-    input clk, reset_p,
-    input [3:0] btn,        // 시작 버튼
-    output scl, sda,
-    output reg [15:0] led
-);
-    
-    // 버튼 입력의 상승 에지 검출 신호 [기능 테스트 용도]
-    wire [3:0] btn_pedge; 
-    btn_cntr btn0(clk, reset_p, btn[0], btn_pedge[0]);
-    btn_cntr btn1(clk, reset_p, btn[1], btn_pedge[1]);
-    btn_cntr btn2(clk, reset_p, btn[2], btn_pedge[2]);
-    btn_cntr btn3(clk, reset_p, btn[3], btn_pedge[3]);
-    
-    // 통합 Hello World & Clear I2C LCD 컨트롤러
+    // Clear I2C LCD 컨트롤러
     wire init_done;
     reg [2:0] text_cmd;  // 텍스트 명령 (1: Happy, 2: Smile, 3: Sad, 4: Normal, 5: Clear)
 
@@ -196,58 +129,156 @@ module smart_flower_pot_text_top(
         .init_done(init_done) // init_done 포트 연결
     );
 
-    wire clk_usec_nedge;
-    clock_div_100 us_clk(.clk(clk), .reset_p(reset_p),
-        .nedge_div_100(clk_usec_nedge));
+    // test code ...
+    // 버튼 입력의 상승 에지 검출 신호 [기능 테스트 용도]
+    wire [3:0] btn_pedge; 
+    btn_cntr btn0(clk, reset_p, btn[0], btn_pedge[0]);
+    btn_cntr btn1(clk, reset_p, btn[1], btn_pedge[1]);
+    btn_cntr btn2(clk, reset_p, btn[2], btn_pedge[2]);
+    btn_cntr btn3(clk, reset_p, btn[3], btn_pedge[3]);
 
-    reg [21:0] count_usec;
-    reg count_usec_e;
-    always @(negedge clk, posedge reset_p)begin
-        if(reset_p)count_usec = 0;
-        else if(clk_usec_nedge && count_usec_e)count_usec = count_usec + 1;
-        else if(!count_usec_e)count_usec = 0;
-    end  
+    // 1us 단위 클럭 생성
+    wire clk_usec_pedge;
+    clock_div_100 us_clk(
+        .clk(clk),
+        .reset_p(reset_p),
+        .nedge_div_100(clk_usec_pedge)
+    );
 
+
+    //reg happy_flag;
+
+    // 텍스트 명령 (1: Happy, 2: Smile, 3: Sad, 4: Normal, 5: Clear)
+    reg sad_clear_flag;  // Sad Face 표시를 위한 Clear 플래그
+    reg [15:0] sad_delay_counter;  // Clear 명령 후 지연을 위한 카운터
+    reg happy_clear_flag;  // Happy Face 표시를 위한 Clear 플래그
+    reg [15:0] happy_delay_counter;  // Happy Clear 명령 후 지연을 위한 카운터
+    
     // 버튼 눌림 상태를 확인하는 always 블록
     always @(posedge clk or posedge reset_p) begin
         if (reset_p) begin
-            text_cmd = 0;
-            count_usec_e = 0;
-            led = 0;
+            // 리셋 로직
+            buzz_enable <= 1'b0;
+            text_cmd <= 5;  // Clear
+            color_sel <= 3'b111; // sfp_led_rgb_cntr 에서 reset 시 off 됨. 
+            sad_clear_flag <= 1'b0;
+            sad_delay_counter <= 16'd0;
+            happy_clear_flag <= 1'b0;
+            happy_delay_counter <= 16'd0;
         end 
         else begin
-            // 버튼 입력에 따른 처리 (버튼이 눌린 경우만 체크)
-            if (btn_pedge[0]) begin // btn[0] 눌림: "Happy Face" 출력
-                text_cmd = 1;  // Happy Face
+            if( clk_usec_pedge )begin
+                // ---- adc_value  
+                if ( adc_value <= 10) begin
+                    led = 16'b0000_0000_0000_0001;
+                   
+                    // adc_value > 10일 때 플래그 리셋
+                    sad_clear_flag <= 1'b0;
+                    sad_delay_counter <= 16'd0;
+                    happy_clear_flag <= 1'b0;
+                    happy_delay_counter <= 16'd0;
+
+                end
+                else if ( adc_value <= 20) begin
+
+                    //led = 16'b0000_0000_0000_1111; //step 1
+                    // Sad Face 표시를 위한 Clear 후 Sad 표시 로직
+                    if (!sad_clear_flag) begin
+                        led = 16'b1111_1111_1111_0000;
+                        text_cmd <= 5;  // Clear 먼저 호출
+                        sad_clear_flag <= 1'b1;
+                        sad_delay_counter <= 16'd0;
+                    end
+                    else if (sad_delay_counter < 16'd2000) begin  //2ms 지연 (2,000 us)
+                        sad_delay_counter <= sad_delay_counter + 1;
+                        led = 16'b0000_1111_1111_0000;
+                    end
+                    else begin
+                        text_cmd <= 3;  // Sad Face 표시
+                        led = 16'b0000_0000_0000_1111;
+                    end
+                    
+                    happy_clear_flag <= 1'b0;
+                    happy_delay_counter <= 16'd0;
+                    
+                end
+                else if (adc_value <= 40) begin
+                    // adc_value > 30일 때 플래그 리셋
+                    sad_clear_flag <= 1'b0;
+                    sad_delay_counter <= 16'd0;
+                    happy_clear_flag <= 1'b0;
+                    happy_delay_counter <= 16'd0;
+                    
+                    led = 16'b0000_0000_1111_1111; //step 2
+                end
+                else if (adc_value <= 50) begin
+                    // adc_value > 40일 때 플래그 리셋
+                    sad_clear_flag <= 1'b0;
+                    sad_delay_counter <= 16'd0;
+                    happy_clear_flag <= 1'b0;
+                    happy_delay_counter <= 16'd0;
+
+                    led = 16'b0000_1111_1111_1111; //step 3
+                end
+                else begin
+                    // adc_value > 50일 때 Happy Face 표시를 위한 Clear 후 Happy 표시 로직
+                    if (!happy_clear_flag) begin
+                        led = 16'b1111_1111_1111_0000;
+                        text_cmd <= 5;  // Clear 먼저 호출
+                        happy_clear_flag <= 1'b1;
+                        happy_delay_counter <= 16'd0;
+                    end
+                    else if (happy_delay_counter < 16'd2000) begin  // 2ms 지연 (2,000 us)
+                        happy_delay_counter <= happy_delay_counter + 1;
+                        led = 16'b0000_1111_1111_0000;
+                    end
+                    else begin
+                        text_cmd <= 1;  // Happy Face 표시
+                        led = 16'b1111_1111_1111_1111; //step 4
+                    end
+                    
+                    // 다른 조건일 때 sad 플래그 리셋
+                    sad_clear_flag <= 1'b0;
+                    sad_delay_counter <= 16'd0;
+                end
             end
-            else if (btn_pedge[1]) begin // btn[1] "Normal Face" 출력
-                text_cmd = 4;  // Normal Face
+
+            // ----
+            if (btn_pedge[0]) begin
+                // 버튼 0 눌림 동작: 부저 토글
+                buzz_enable <= ~buzz_enable;
+                text_cmd = 5;  // 5: Clear
             end
-            else if (btn_pedge[2]) begin // btn[2] 눌림: "Smile Face" 출력
-                text_cmd = 2;  // Smile Face
-            end
-            else if (btn_pedge[3]) begin // btn[3] 눌림: "Sad Face" 출력
+            if (btn_pedge[1]) begin
+                // 버튼 1 눌림 동작: RGB LED를 노란색으로 설정
+                // 색상 선택 (예: 3비트, 0: Red, 1: Green, 2: Blue, 3: Yellow, 4: Cyan, 5: Magenta, 6: White)
+                color_sel = 3'd2; // 2은 Blue에 해당
                 text_cmd = 3;  // Sad Face
             end
-            else begin // 버튼이 눌리지 않은 경우 : 아무 동작 안함
-                text_cmd = 0;  // No Action
+            if (btn_pedge[2]) begin
+                // 버튼 2 눌림 동작
+                color_sel <= 3'd1; // 1은 Green에 해당
+                text_cmd = 1;  // Happy Face
             end
-            
-            // 디버깅용: 상태 변화가 있을 때만 LED 업데이트
-            if (led[15] != init_done) led[15] <= init_done;
+            if (btn_pedge[3]) begin
+                // 버튼 3 눌림 동작
+                color_sel <= 3'd0; // 1은 Green에 해당
+                text_cmd = 2;  // 5: Clear
+            end
         end
     end
+    
+    /*
+    prompt : 
+    ```
+            if ( adc_value <= 10) begin
+                led = 16'b0000_0000_0000_0000;
+            end 
+    ```
+    위 조건을 만족하면 lcd_text_cntr 의  3: Sad 가 나오게 작성요청합니다.
+    3: Sad 를 출력하기 전에 5: Clear 호출해서 화면을 지워 주세요 
 
-
+    */
+    
+    
 endmodule
-
-
-
-
-
-
-
-
-
-
-

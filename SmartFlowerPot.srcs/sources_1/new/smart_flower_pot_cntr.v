@@ -337,3 +337,76 @@ module sfa_i2c_lcd_text_cntr(
         end
     end
 endmodule
+
+module smart_flower_pot_text_top(
+    input clk, reset_p,
+    input [3:0] btn,        // 시작 버튼
+    output scl, sda,
+    output reg [15:0] led
+);
+    
+    // 버튼 입력의 상승 에지 검출 신호 [기능 테스트 용도]
+    wire [3:0] btn_pedge; 
+    btn_cntr btn0(clk, reset_p, btn[0], btn_pedge[0]);
+    btn_cntr btn1(clk, reset_p, btn[1], btn_pedge[1]);
+    btn_cntr btn2(clk, reset_p, btn[2], btn_pedge[2]);
+    btn_cntr btn3(clk, reset_p, btn[3], btn_pedge[3]);
+    
+    // Clear I2C LCD 컨트롤러
+    wire init_done;
+    reg [2:0] text_cmd;  // 텍스트 명령 (1: Happy, 2: Smile, 3: Sad, 4: Normal, 5: Clear)
+
+    sfa_i2c_lcd_text_cntr lcd_text_cntr(
+        .clk(clk),
+        .reset_p(reset_p),
+        .text_cmd(text_cmd),
+        .scl(scl),
+        .sda(sda),
+        .init_done(init_done) // init_done 포트 연결
+    );
+
+    wire clk_usec_nedge;
+    clock_div_100 us_clk(.clk(clk), .reset_p(reset_p),
+        .nedge_div_100(clk_usec_nedge));
+
+    reg [21:0] count_usec;
+    reg count_usec_e;
+    always @(negedge clk, posedge reset_p)begin
+        if(reset_p)count_usec = 0;
+        else if(clk_usec_nedge && count_usec_e)count_usec = count_usec + 1;
+        else if(!count_usec_e)count_usec = 0;
+    end  
+
+    // 버튼 눌림 상태를 확인하는 always 블록
+    always @(posedge clk or posedge reset_p) begin
+        if (reset_p) begin
+            text_cmd = 0;
+            count_usec_e = 0;
+            led = 0;
+        end 
+        else begin
+            // 버튼 입력에 따른 처리 (버튼이 눌린 경우만 체크)
+            if (btn_pedge[0]) begin // btn[0] 눌림: "Happy Face" 출력
+                text_cmd = 1;  // Happy Face
+            end
+            else if (btn_pedge[1]) begin // btn[1] "Normal Face" 출력
+                text_cmd = 4;  // Normal Face
+            end
+            else if (btn_pedge[2]) begin // btn[2] 눌림: "Smile Face" 출력
+                text_cmd = 2;  // Smile Face
+            end
+            else if (btn_pedge[3]) begin // btn[3] 눌림: "Sad Face" 출력
+                text_cmd = 3;  // Sad Face
+            end
+            else begin // 버튼이 눌리지 않은 경우 : 아무 동작 안함
+                text_cmd = 0;  // No Action
+            end
+            
+            // 디버깅용: 상태 변화가 있을 때만 LED 업데이트
+            if (led[15] != init_done) led[15] <= init_done;
+        end
+    end
+
+
+endmodule
+
