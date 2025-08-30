@@ -140,8 +140,14 @@ module smart_flower_pot_top(
         .nedge_div_100(clk_usec_pedge)
     );
 
+    // 1ms 단위 클럭 생성
+    wire clk_msec_pedge;
+    clock_div_1ms ms_clk(
+        .clk(clk),
+        .reset_p(reset_p),
+        .nedge_div_1ms(clk_msec_pedge)
+    );
 
-    //reg happy_flag;
 
     // 텍스트 명령 (1: Happy, 2: Smile, 3: Sad, 4: Normal, 5: Clear)
     reg sad_clear_flag;  // Sad Face 표시를 위한 Clear 플래그
@@ -150,6 +156,8 @@ module smart_flower_pot_top(
     reg [15:0] happy_delay_counter;  // Happy Clear 명령 후 지연을 위한 카운터
     reg smile_clear_flag;  // Smile Face 표시를 위한 Clear 플래그
     reg [15:0] smile_delay_counter;  // Smile Clear 명령 후 지연을 위한 카운터
+    reg normal_clear_flag;  // Normal Face 표시를 위한 Clear 플래그
+    reg [15:0] normal_delay_counter;  // Normal Clear 명령 후 지연을 위한 카운터
     
 
 
@@ -172,6 +180,8 @@ module smart_flower_pot_top(
             happy_delay_counter <= 16'd0;
             smile_clear_flag <= 1'b0;
             smile_delay_counter <= 16'd0;
+            normal_clear_flag <= 1'b0;
+            normal_delay_counter <= 16'd0;
         end 
         else begin
             if( clk_usec_pedge )begin
@@ -199,18 +209,34 @@ module smart_flower_pot_top(
                     happy_delay_counter <= 16'd0;
                     smile_clear_flag <= 1'b0;
                     smile_delay_counter <= 16'd0;
+                    normal_clear_flag <= 1'b0;
+                    normal_delay_counter <= 16'd0;
                     
                 end
-                else if (adc_value <= 10) begin
-                    // adc_value > 30일 때 플래그 리셋
+                else if (adc_value <= 20) begin
+                    // Normal Face 표시를 위한 Clear 후 Normal 표시 로직
+                    if (!normal_clear_flag) begin
+                        led = 16'b1111_1111_1111_0000;
+                        text_cmd <= 5;  // Clear 먼저 호출
+                        normal_clear_flag <= 1'b1;
+                        normal_delay_counter <= 16'd0;
+                    end
+                    else if (normal_delay_counter < 16'd3000) begin  // 3ms 지연 (3,000 us)
+                        normal_delay_counter <= normal_delay_counter + 1;
+                        led = 16'b0000_1111_1111_0000;
+                    end
+                    else begin
+                        text_cmd <= 4;  // Normal Face 표시
+                        led = 16'b0000_0000_1111_1111; //step 2
+                    end
+                    
+                    // 다른 플래그들 리셋
                     sad_clear_flag <= 1'b0;
                     sad_delay_counter <= 16'd0;
                     happy_clear_flag <= 1'b0;
                     happy_delay_counter <= 16'd0;
                     smile_clear_flag <= 1'b0;
                     smile_delay_counter <= 16'd0;
-                    
-                    led = 16'b0000_0000_1111_1111; //step 2
                 end
                 else if (adc_value <= 30) begin
                     // adc_value > 40일 때 Smile Face 표시를 위한 Clear 후 Smile 표시 로직
@@ -234,6 +260,8 @@ module smart_flower_pot_top(
                     sad_delay_counter <= 16'd0;
                     happy_clear_flag <= 1'b0;
                     happy_delay_counter <= 16'd0;
+                    normal_clear_flag <= 1'b0;
+                    normal_delay_counter <= 16'd0;
                 end
                 else begin
                     // adc_value > 50일 때 Happy Face 표시를 위한 Clear 후 Happy 표시 로직
@@ -257,6 +285,8 @@ module smart_flower_pot_top(
                     sad_delay_counter <= 16'd0;
                     smile_clear_flag <= 1'b0;
                     smile_delay_counter <= 16'd0;
+                    normal_clear_flag <= 1'b0;
+                    normal_delay_counter <= 16'd0;
                 end
             end
 
