@@ -75,12 +75,7 @@ module smart_flower_pot_top(
         .cp(eoc_out),
         .p_edge(eoc_pedge)
     );
-    
-    //   수위 센서  0 ~ 30 : step 1
-    //           31 ~ 40 : step 2 (W 글자)
-    //           41 ~ 50 : step 3 (S 글자)
-    //           51 ~ 55 : step 4 (O 글자)       
-    
+      
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) adc_value = 0;
         else if (eoc_pedge) begin
@@ -153,7 +148,17 @@ module smart_flower_pot_top(
     reg [15:0] sad_delay_counter;  // Clear 명령 후 지연을 위한 카운터
     reg happy_clear_flag;  // Happy Face 표시를 위한 Clear 플래그
     reg [15:0] happy_delay_counter;  // Happy Clear 명령 후 지연을 위한 카운터
+    reg smile_clear_flag;  // Smile Face 표시를 위한 Clear 플래그
+    reg [15:0] smile_delay_counter;  // Smile Clear 명령 후 지연을 위한 카운터
     
+
+
+    //   수위 센서  0 ~ 30 : step 1
+    //           31 ~ 40 : step 2 (W 글자)
+    //           41 ~ 50 : step 3 (S 글자)
+    //           51 ~ 55 : step 4 (O 글자)
+
+
     // 버튼 눌림 상태를 확인하는 always 블록
     always @(posedge clk or posedge reset_p) begin
         if (reset_p) begin
@@ -165,21 +170,13 @@ module smart_flower_pot_top(
             sad_delay_counter <= 16'd0;
             happy_clear_flag <= 1'b0;
             happy_delay_counter <= 16'd0;
+            smile_clear_flag <= 1'b0;
+            smile_delay_counter <= 16'd0;
         end 
         else begin
             if( clk_usec_pedge )begin
                 // ---- adc_value  
                 if ( adc_value <= 10) begin
-                    led = 16'b0000_0000_0000_0001;
-                   
-                    // adc_value > 10일 때 플래그 리셋
-                    sad_clear_flag <= 1'b0;
-                    sad_delay_counter <= 16'd0;
-                    happy_clear_flag <= 1'b0;
-                    happy_delay_counter <= 16'd0;
-
-                end
-                else if ( adc_value <= 20) begin
 
                     //led = 16'b0000_0000_0000_1111; //step 1
                     // Sad Face 표시를 위한 Clear 후 Sad 표시 로직
@@ -189,7 +186,7 @@ module smart_flower_pot_top(
                         sad_clear_flag <= 1'b1;
                         sad_delay_counter <= 16'd0;
                     end
-                    else if (sad_delay_counter < 16'd2000) begin  //2ms 지연 (2,000 us)
+                    else if (sad_delay_counter < 16'd3000) begin  //2ms 지연 (2,000 us)
                         sad_delay_counter <= sad_delay_counter + 1;
                         led = 16'b0000_1111_1111_0000;
                     end
@@ -200,25 +197,43 @@ module smart_flower_pot_top(
                     
                     happy_clear_flag <= 1'b0;
                     happy_delay_counter <= 16'd0;
+                    smile_clear_flag <= 1'b0;
+                    smile_delay_counter <= 16'd0;
                     
                 end
-                else if (adc_value <= 40) begin
+                else if (adc_value <= 10) begin
                     // adc_value > 30일 때 플래그 리셋
                     sad_clear_flag <= 1'b0;
                     sad_delay_counter <= 16'd0;
                     happy_clear_flag <= 1'b0;
                     happy_delay_counter <= 16'd0;
+                    smile_clear_flag <= 1'b0;
+                    smile_delay_counter <= 16'd0;
                     
                     led = 16'b0000_0000_1111_1111; //step 2
                 end
-                else if (adc_value <= 50) begin
-                    // adc_value > 40일 때 플래그 리셋
+                else if (adc_value <= 30) begin
+                    // adc_value > 40일 때 Smile Face 표시를 위한 Clear 후 Smile 표시 로직
+                    if (!smile_clear_flag) begin
+                        led = 16'b1111_1111_1111_0000;
+                        text_cmd <= 5;  // Clear 먼저 호출
+                        smile_clear_flag <= 1'b1;
+                        smile_delay_counter <= 16'd0;
+                    end
+                    else if (smile_delay_counter < 16'd3000) begin  // 3.5ms 지연 (3,500 us)
+                        smile_delay_counter <= smile_delay_counter + 1;
+                        led = 16'b0000_1111_1111_0000;
+                    end
+                    else begin
+                        text_cmd <= 2;  // Smile Face 표시
+                        led = 16'b0000_1111_1111_1111; //step 3
+                    end
+                    
+                    // 다른 플래그들 리셋
                     sad_clear_flag <= 1'b0;
                     sad_delay_counter <= 16'd0;
                     happy_clear_flag <= 1'b0;
                     happy_delay_counter <= 16'd0;
-
-                    led = 16'b0000_1111_1111_1111; //step 3
                 end
                 else begin
                     // adc_value > 50일 때 Happy Face 표시를 위한 Clear 후 Happy 표시 로직
@@ -228,7 +243,7 @@ module smart_flower_pot_top(
                         happy_clear_flag <= 1'b1;
                         happy_delay_counter <= 16'd0;
                     end
-                    else if (happy_delay_counter < 16'd2000) begin  // 2ms 지연 (2,000 us)
+                    else if (happy_delay_counter < 16'd3000) begin  // 2ms 지연 (2,000 us)
                         happy_delay_counter <= happy_delay_counter + 1;
                         led = 16'b0000_1111_1111_0000;
                     end
@@ -237,13 +252,17 @@ module smart_flower_pot_top(
                         led = 16'b1111_1111_1111_1111; //step 4
                     end
                     
-                    // 다른 조건일 때 sad 플래그 리셋
+                    // 다른 조건일 때 sad, smile 플래그 리셋
                     sad_clear_flag <= 1'b0;
                     sad_delay_counter <= 16'd0;
+                    smile_clear_flag <= 1'b0;
+                    smile_delay_counter <= 16'd0;
                 end
             end
 
-            // ----
+            // ---------------------------------------------------------------------------------
+            // [테스트용 버튼 처리 로직]
+        
             if (btn_pedge[0]) begin
                 // 버튼 0 눌림 동작: 부저 토글
                 buzz_enable <= ~buzz_enable;
@@ -265,6 +284,7 @@ module smart_flower_pot_top(
                 color_sel <= 3'd0; // 1은 Green에 해당
                 text_cmd = 2;  // 5: Clear
             end
+            // ---------------------------------------------------------------------------------
         end
     end
     
