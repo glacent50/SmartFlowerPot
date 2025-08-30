@@ -49,3 +49,47 @@ flowchart TD
 	G -- N --> H[Button edges]
 	H --> A
 ```
+
+## 시퀀스 다이어그램
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Main as main_always (smart_flower_pot_top)
+    participant DHT as dht11_cntr
+    participant FND as fnd_cntr
+    participant LCD as sfa_i2c_lcd_text_cntr
+    participant BUZZ as sfp_buzz_cntr
+    participant RGB as sfp_led_rgb_cntr
+    
+
+    Note over LCD: text_cmd: 1=Happy, 2=Smile, 3=Sad, 4=Normal, 5=Clear
+
+    alt reset asserted
+        Main->>BUZZ: buzz_e <= 0
+        Main->>RGB: color_sel <= off
+        Main->>LCD: text_cmd <= Clear(5)
+        Note right of Main: sad/happy/smile/normal flags reset
+    else running
+        
+
+        opt LCD/LED decision @ clk_usec_pedge
+            Main->>Main: if clk_usec_pedge
+            alt adc <= 10
+                Main->>LCD: Clear(5) -> Sad(3) after delay
+                Main->>RGB: LED step1 pattern
+            else adc <= 20
+                Main->>LCD: Clear(5) -> Normal(4) after delay
+                Main->>RGB: LED step2 pattern
+            else adc <= 30
+                Main->>LCD: Clear(5) -> Smile(2) after delay
+                Main->>RGB: LED step3 pattern
+            else adc > 30
+                Main->>LCD: Clear(5) -> Happy(1) after delay
+                Main->>RGB: LED step4 pattern
+            end
+        end
+    end
+```
+
+
