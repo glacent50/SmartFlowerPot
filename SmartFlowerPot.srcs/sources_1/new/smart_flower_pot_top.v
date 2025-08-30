@@ -22,7 +22,7 @@
 module smart_flower_pot_top(
     input clk, reset_p,
     inout dht11_data,
-    input vauxp6,vauxn6,              // Auxiliary channel 6
+    input vauxp6,vauxn6,             
     input [3:0] btn,
     output [7:0] seg_7,
     output [3:0] com,
@@ -111,7 +111,7 @@ module smart_flower_pot_top(
     assign led_b = led_b_out; // Blue LED 출력 신호 연결
     
 
-    // Clear I2C LCD 컨트롤러
+    // I2C LCD 컨트롤러
     wire init_done;
     reg [2:0] text_cmd;  // 텍스트 명령 (1: Happy, 2: Smile, 3: Sad, 4: Normal, 5: Clear)
 
@@ -161,7 +161,8 @@ module smart_flower_pot_top(
     
 
 
-    //   수위 센서  0 ~ 30 : step 1
+    // [수위 센서 제어 범위]  
+    //            0 ~ 30 : step 1
     //           31 ~ 40 : step 2 (W 글자)
     //           41 ~ 50 : step 3 (S 글자)
     //           51 ~ 55 : step 4 (O 글자)
@@ -173,7 +174,7 @@ module smart_flower_pot_top(
             // 리셋 로직
             buzz_enable <= 1'b0;
             text_cmd <= 5;  // Clear
-            color_sel <= 3'b111; // sfp_led_rgb_cntr 에서 reset 시 off 됨. 
+            color_sel <= 3'b111;            // sfp_led_rgb_cntr 에서 reset 시 off 됨. 
             sad_clear_flag <= 1'b0;
             sad_delay_counter <= 16'd0;
             happy_clear_flag <= 1'b0;
@@ -293,42 +294,21 @@ module smart_flower_pot_top(
             // ---------------------------------------------------------------------------------
             // [테스트용 버튼 처리 로직]
         
-            if (btn_pedge[0]) begin
-                // 버튼 0 눌림 동작: 부저 토글
-                buzz_enable <= ~buzz_enable;
-                text_cmd = 5;  // 5: Clear
+            if (btn_pedge[0]) begin  
+                buzz_enable <= ~buzz_enable;  // 부저 활성화 신호 토글 (켜짐/꺼짐 전환)
+                text_cmd <= 5;                // Text Clear 먼저 호출 (LCD 텍스트 클리어 명령)
             end
-            if (btn_pedge[1]) begin
-                // 버튼 1 눌림 동작: RGB LED를 노란색으로 설정
-                // 색상 선택 (예: 3비트, 0: Red, 1: Green, 2: Blue, 3: Yellow, 4: Cyan, 5: Magenta, 6: White)
-                color_sel = 3'd2; // 2은 Blue에 해당
-                text_cmd = 3;  // Sad Face
+            if (btn_pedge[1]) begin  
+                color_sel = 3'd2;             // 색상 선택: 노란색 (sfp_led_rgb_cntr 모듈에서 Yellow)
             end
-            if (btn_pedge[2]) begin
-                // 버튼 2 눌림 동작
-                color_sel <= 3'd1; // 1은 Green에 해당
-                text_cmd = 1;  // Happy Face
+            if (btn_pedge[2]) begin  
+                color_sel <= 3'd1;            // 색상 선택: 녹색 (sfp_led_rgb_cntr 모듈에서 Green)
             end
-            if (btn_pedge[3]) begin
-                // 버튼 3 눌림 동작
-                color_sel <= 3'd0; // 1은 Green에 해당
-                text_cmd = 2;  // 5: Clear
+            if (btn_pedge[3]) begin  
+                color_sel <= 3'd0;            // 색상 선택: 빨강 (sfp_led_rgb_cntr 모듈에서 Red)
             end
             // ---------------------------------------------------------------------------------
         end
     end
-    
-    /*
-    prompt : 
-    ```
-            if ( adc_value <= 10) begin
-                led = 16'b0000_0000_0000_0000;
-            end 
-    ```
-    위 조건을 만족하면 lcd_text_cntr 의  3: Sad 가 나오게 작성요청합니다.
-    3: Sad 를 출력하기 전에 5: Clear 호출해서 화면을 지워 주세요 
-
-    */
-    
-    
+        
 endmodule
